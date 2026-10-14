@@ -1,0 +1,66 @@
+//this code is used in the atmega8 to create the icon in the GLCD 
+
+void GLCD_Icon16x16(
+    uint8_t page,
+    uint8_t column,
+    uint8_t icon
+)
+{
+    uint8_t x;
+    uint8_t top;
+    uint8_t bottom;
+
+    /*
+     * 16 pixels high = 2 GLCD pages.
+     */
+    if (page > 6)
+        return;
+
+    /*
+     * 16 pixels wide.
+     */
+    if (column >= 128)
+        return;
+
+    for (x = 0; x < 16; x++)
+    {
+        /*
+         * First 16 bytes = top page.
+         */
+        top = pgm_read_byte(
+            &icons16[icon][x]
+        );
+
+        /*
+         * Next 16 bytes = bottom page.
+         */
+        bottom = pgm_read_byte(
+            &icons16[icon][16 + x]
+        );
+
+        /*
+         * Top half.
+         */
+        if ((uint16_t)column + x < 128)
+        {
+            GLCD_WriteByteAt(
+                page,
+                column + x,
+                top
+            );
+        }
+
+        /*
+         * Bottom half.
+         */
+        if ((uint16_t)column + x < 128)
+        {
+            GLCD_WriteByteAt(
+                page + 1,
+                column + x,
+                bottom
+            );
+        }
+		
+    }
+}

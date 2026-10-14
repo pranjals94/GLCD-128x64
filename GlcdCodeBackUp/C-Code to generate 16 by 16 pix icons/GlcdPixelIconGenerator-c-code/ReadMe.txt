@@ -1,0 +1,1 @@
+open the img.bmp file in ms paint and edit the desired icon, then run the c code provided, the output text file will contain the generated hex file of the icon.

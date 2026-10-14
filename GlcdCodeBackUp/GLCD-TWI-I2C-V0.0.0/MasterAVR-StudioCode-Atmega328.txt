@@ -1,0 +1,164 @@
+#define F_CPU 16000000UL
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#define ATMEGA8_ADDR    0x08
+
+#define CMD_STRING8     0x01
+#define CMD_STRING16    0x02
+#define CMD_CLEAR       0x03
+#define CMD_16by16icon  0x04
+
+// ========================================
+// TWI INITIALIZATION
+// ========================================
+
+void TWI_Init(void)
+{
+    // SDA = PC4, SCL = PC5
+    DDRC &= ~((1 << PC4) | (1 << PC5));
+    PORTC |= (1 << PC4) | (1 << PC5);
+
+    // Prescaler = 1
+    TWSR = 0x00;
+
+    // Approximately 308 kHz at 16 MHz
+    TWBR = 18;
+
+    // Enable TWI
+    TWCR = (1 << TWEN);
+}
+
+// ========================================
+// TWI START
+// ========================================
+
+void TWI_Start(void)
+{
+    TWCR = (1 << TWINT) |
+           (1 << TWSTA) |
+           (1 << TWEN);
+
+    while (!(TWCR & (1 << TWINT)));
+}
+
+// ========================================
+// TWI WRITE BYTE
+// ========================================
+
+void TWI_Write(uint8_t data)
+{
+    TWDR = data;
+
+    TWCR = (1 << TWINT) |
+           (1 << TWEN);
+
+    while (!(TWCR & (1 << TWINT)));
+}
+
+// ========================================
+// TWI STOP
+// ========================================
+
+void TWI_Stop(void)
+{
+    TWCR = (1 << TWINT) |
+           (1 << TWEN)  |
+           (1 << TWSTO);
+}
+
+// ========================================
+// SEND GLCD STRING
+// Frame: [command][row][column][message]
+// ========================================
+
+void sendGLCDString(uint8_t command,
+                    uint8_t row,
+                    uint8_t column,
+                    const char *message)
+{
+    TWI_Start();
+
+    // Slave address + WRITE
+    TWI_Write(ATMEGA8_ADDR << 1);
+
+    // Command
+    TWI_Write(command);
+
+    // Row
+    TWI_Write(row);
+
+    // Column
+    TWI_Write(column);
+
+    // Message
+    while (*message)
+    {
+        TWI_Write((uint8_t)*message++);
+    }
+
+    TWI_Stop();
+
+    // GLCD processing delay
+    _delay_ms(20);
+}
+
+// ========================================
+// MAIN
+// ========================================
+
+int main(void)
+{
+    uint8_t num = 0;
+    char buff[4];
+
+    TWI_Init();
+
+    _delay_ms(1000);
+
+    // Dummy clear commands
+    sendGLCDString(CMD_CLEAR, 0xFF, 0xFF, "");
+    sendGLCDString(CMD_CLEAR, 0xFF, 0xFF, "");
+
+    while (1)
+    {
+        sendGLCDString(
+            CMD_STRING16, 0, 0, "Rango The Liza"
+        );
+
+        sendGLCDString(
+            CMD_STRING8, 2, 0, "HELLO This is a test-"
+        );
+
+        sendGLCDString(
+            CMD_STRING16, 3, 0, "Robosapiens ro"
+        );
+
+        sendGLCDString(
+            CMD_STRING8, 5, 0, "Mango, Apple, Bananna"
+        );
+
+        // Convert counter to decimal string
+        itoa(num++, buff, 10);
+
+        sendGLCDString(
+            CMD_STRING16, 6, 73, buff
+        );
+
+        sendGLCDString(
+            CMD_16by16icon, 6, 20, "0"
+        );
+
+        sendGLCDString(
+            CMD_16by16icon, 6, 56, "1"
+        );
+
+        sendGLCDString(
+            CMD_16by16icon, 6, 100, "2"
+        );
+
+    }
+}
